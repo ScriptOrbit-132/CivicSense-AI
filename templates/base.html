@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}CivicSense AI — Generative AI-Based Civic Issue Detection and Management System{% endblock %}</title>
+  
+  <!-- Modern Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Leaflet GIS Map CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  
+  <!-- CivicSense AI Theme Stylesheet -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <!-- Navigation Bar -->
+  <nav class="navbar">
+    <a href="{{ url_for('index') }}" class="nav-brand">
+      <div class="brand-icon">
+        <i class="fa-solid fa-city"></i>
+      </div>
+      <div class="brand-text">
+        <h1>CivicSense AI <span class="brand-badge"><i class="fa-solid fa-microchip"></i> GenAI Powered</span></h1>
+      </div>
+    </a>
+
+    <ul class="nav-links">
+      <li>
+        <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">
+          <i class="fa-solid fa-bullhorn"></i> Report Issue
+        </a>
+      </li>
+      <li>
+        <a href="{{ url_for('track') }}" class="nav-link {% if request.endpoint == 'track' %}active{% endif %}">
+          <i class="fa-solid fa-magnifying-glass-location"></i> Track Status
+        </a>
+      </li>
+      <li>
+        <a href="{{ url_for('admin') }}" class="nav-link btn-nav-action {% if request.endpoint == 'admin' %}active{% endif %}">
+          <i class="fa-solid fa-shield-halved"></i> Authority Command Center
+        </a>
+      </li>
+    </ul>
+  </nav>
+
+  <!-- Main Content Container -->
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Global Footer -->
+  <footer>
+    <div style="max-width: 1200px; margin: 0 auto; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem;">
+      <div>
+        <strong>CivicSense AI</strong> — Generative AI-Based Civic Issue Detection & Management System
+      </div>
+      <div>
+        <span>Powered by <i class="fa-solid fa-brain" style="color: #38bdf8;"></i> Gemini Vision & NLP</span>
+        &nbsp;|&nbsp;
+        <span><i class="fa-solid fa-database" style="color: #10b981;"></i> SQLite Cloud Sync</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  
+  <!-- Markdown Renderer for AI Summaries -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

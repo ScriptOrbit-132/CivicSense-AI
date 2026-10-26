@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+
+{% block title %}Report Civic Issue — CivicSense AI{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section">
+  <div class="hero-pill">
+    <i class="fa-solid fa-satellite-dish"></i> Next-Gen Smart Municipal Intelligence
+  </div>
+  <h1 class="hero-title">
+    Empowering Citizens with <span class="gradient-text">Generative AI</span>
+  </h1>
+  <p class="hero-subtitle">
+    Report potholes, overflowing garbage, broken water mains, and electrical hazards. Our Gemini multimodal AI analyzes imagery, transcribes voice notes, detects duplicate tickets, and dispatches municipal crews in real time.
+  </p>
+
+  <!-- Quick Tracking Search -->
+  <div style="max-width: 520px; margin: 0 auto 1.5rem; display: flex; gap: 0.5rem;">
+    <input type="text" id="quickTrackInput" class="form-control" placeholder="Enter Tracking ID (e.g. CIVIC-2026-A109F)" style="background: rgba(15, 23, 42, 0.9);">
+    <button onclick="handleQuickTrack()" class="btn btn-primary" style="white-space: nowrap;">
+      <i class="fa-solid fa-search"></i> Track
+    </button>
+  </div>
+</section>
+
+<!-- Stats Strip -->
+<div class="stats-strip" id="statsStrip">
+  <div class="glass-panel stat-card">
+    <div class="stat-icon" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8;">
+      <i class="fa-solid fa-clipboard-list"></i>
+    </div>
+    <div class="stat-info">
+      <div class="stat-value" id="statTotal">--</div>
+      <div class="stat-label">Total Reports Logged</div>
+    </div>
+  </div>
+
+  <div class="glass-panel stat-card">
+    <div class="stat-icon" style="background: rgba(244, 63, 94, 0.15); color: #f43f5e;">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+    </div>
+    <div class="stat-info">
+      <div class="stat-value" id="statCritical">--</div>
+      <div class="stat-label">Critical Emergencies</div>
+    </div>
+  </div>
+
+  <div class="glass-panel stat-card">
+    <div class="stat-icon" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">
+      <i class="fa-solid fa-circle-check"></i>
+    </div>
+    <div class="stat-info">
+      <div class="stat-value" id="statResolved">--</div>
+      <div class="stat-label">Resolved & Restored</div>
+    </div>
+  </div>
+
+  <div class="glass-panel stat-card">
+    <div class="stat-icon" style="background: rgba(168, 85, 247, 0.15); color: #c084fc;">
+      <i class="fa-solid fa-code-merge"></i>
+    </div>
+    <div class="stat-info">
+      <div class="stat-value" id="statDuplicates">--</div>
+      <div class="stat-label">Duplicate Tickets Merged</div>
+    </div>
+  </div>
+</div>
+
+<!-- Main Complaint Reporting Section -->
+<div class="container">
+  <div class="grid-2">
+    <!-- Left: Reporting Form -->
+    <div class="glass-panel" style="padding: 2rem;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+        <h2 style="font-family: var(--font-display); font-size: 1.45rem; display: flex; align-items: center; gap: 0.6rem;">
+          <i class="fa-solid fa-camera-rotate" style="color: var(--accent-cyan);"></i> File Civic Report
+        </h2>
+        <span class="badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8;">
+          <i class="fa-solid fa-bolt"></i> Instant AI Routing
+        </span>
+      </div>
+
+      <form id="reportForm" enctype="multipart/form-data">
+        <!-- 1. Photo Evidence Upload -->
+        <div class="form-group">
+          <label class="form-label">
+            <span><i class="fa-solid fa-image"></i> Visual Evidence (Photo)</span>
+            <span class="hint">Gemini Multimodal Computer Vision</span>
+          </label>
+          <div class="dropzone-container" id="dropzone">
+            <input type="file" id="imageInput" name="image" accept="image/*" style="display: none;">
+            <div id="dropzonePrompt">
+              <div class="dropzone-icon">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+              </div>
+              <div style="font-weight: 600; margin-bottom: 0.25rem;">Click or drag & drop hazard photo</div>
+              <div style="font-size: 0.8rem; color: var(--text-muted);">Supports JPG, PNG, WEBP (Max 16MB)</div>
+            </div>
+            <div class="image-preview-wrapper" id="previewWrapper">
+              <img id="imagePreview" src="" alt="Issue Preview">
+              <button type="button" class="btn-remove-preview" id="btnRemoveImage">
+                <i class="fa-solid fa-trash"></i> Remove
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Voice Complaint Input -->
+        <div class="form-group">
+          <label class="form-label">
+            <span><i class="fa-solid fa-microphone"></i> Voice Description (Audio / Speech-to-Text)</span>
+            <span class="hint">Tap mic to speak</span>
+          </label>
+          <div class="voice-recorder-bar">
+            <button type="button" class="btn-mic" id="btnMic" title="Click to record voice note">
+              <i class="fa-solid fa-microphone"></i>
+            </button>
+            <div class="voice-status-text" id="voiceStatus">
+              Click the microphone and speak your complaint naturally.
+            </div>
+          </div>
+          <input type="hidden" id="voiceTranscriptInput" name="voice_transcript">
+        </div>
+
+        <!-- 3. Text Description -->
+        <div class="form-group">
+          <label class="form-label">
+            <span><i class="fa-solid fa-pen-to-square"></i> Issue Description</span>
+            <button type="button" id="btnAiRefine" class="btn-ai-preview" style="padding: 0.15rem 0.5rem; font-size: 0.75rem; border-radius: 4px; cursor: pointer;">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> AI Pre-Scan
+            </button>
+          </label>
+          <textarea id="descriptionInput" name="description" class="form-control" placeholder="Describe the problem, e.g. 'Deep pothole overflowing with rainwater in right lane causing vehicular skids...'"></textarea>
+        </div>
+
+        <!-- 4. Location Details & Map -->
+        <div class="form-group">
+          <label class="form-label">
+            <span><i class="fa-solid fa-location-dot" style="color: var(--accent-rose);"></i> Incident Location</span>
+            <button type="button" id="btnDetectLocation" class="btn-secondary" style="padding: 0.2rem 0.6rem; font-size: 0.75rem; border-radius: 4px; cursor: pointer;">
+              <i class="fa-solid fa-crosshairs"></i> Use My GPS
+            </button>
+          </label>
+          <input type="text" id="addressInput" name="address" class="form-control" placeholder="Street address or landmark (e.g. 12th Cross near Central Market)" value="Arterial Ring Road, Ward 11">
+          <div id="pickerMap"></div>
+          <input type="hidden" id="latInput" name="latitude" value="{{ default_lat }}">
+          <input type="hidden" id="lngInput" name="longitude" value="{{ default_lng }}">
+        </div>
+
+        <!-- 5. Citizen Info (Optional) -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+          <div>
+            <label class="form-label">Citizen Name</label>
+            <input type="text" name="citizen_name" class="form-control" placeholder="Anonymous or your name">
+          </div>
+          <div>
+            <label class="form-label">Contact / Phone</label>
+            <input type="text" name="citizen_phone" class="form-control" placeholder="+91 / (Optional)">
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 1rem;">
+          <button type="submit" id="btnSubmit" class="btn btn-primary" style="flex: 1;">
+            <i class="fa-solid fa-paper-plane"></i> Submit & Dispatch Ticket
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Right: Real-time AI Inspection & Live Preview -->
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+      <div class="glass-panel" style="padding: 2rem; position: sticky; top: 90px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem;">
+          <h3 style="font-family: var(--font-display); font-size: 1.25rem; display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fa-solid fa-brain" style="color: #a855f7;"></i> Gemini AI Analysis Engine
+          </h3>
+          <span id="aiStatusPill" class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">
+            <i class="fa-solid fa-circle-dot"></i> Live Diagnostic Active
+          </span>
+        </div>
+
+        <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+          As you type or attach an image, our multimodal generative neural model detects hazards, assigns severity, identifies public safety risks, and routes directly to the nodal municipal agency.
+        </p>
+
+        <!-- Dynamic AI Preview Box -->
+        <div id="aiPreviewBox" style="background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 1.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <div>
+              <span id="previewCategory" class="badge badge-category">Awaiting Input...</span>
+            </div>
+            <div>
+              <span id="previewPriority" class="badge badge-medium">Medium</span>
+            </div>
+          </div>
+
+          <h4 id="previewTitle" style="font-size: 1rem; margin-bottom: 0.6rem; color: var(--text-main);">
+            Start typing or add an image to inspect issue
+          </h4>
+
+          <!-- Severity Score Bar -->
+          <div style="margin-bottom: 1rem;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.25rem;">
+              <span>Public Hazard Severity Score</span>
+              <span id="previewSeverityText" style="font-weight: 700; color: #38bdf8;">-- / 100</span>
+            </div>
+            <div class="severity-bar-container">
+              <div id="previewSeverityBar" class="severity-fill" style="width: 25%; background: #38bdf8;"></div>
+            </div>
+          </div>
+
+          <!-- Municipal Department Assignment -->
+          <div style="font-size: 0.85rem; margin-bottom: 0.75rem;">
+            <strong style="color: var(--text-muted);">Target Authority:</strong>
+            <div id="previewDepartment" style="color: var(--accent-cyan); font-weight: 600; margin-top: 0.2rem;">
+              General Municipal Administration
+            </div>
+          </div>
+
+          <!-- Risk Factors -->
+          <div style="font-size: 0.85rem; margin-bottom: 0.75rem;">
+            <strong style="color: var(--text-muted);">Identified Safety Risks:</strong>
+            <ul id="previewRisks" style="margin-left: 1.2rem; margin-top: 0.25rem; color: #cbd5e1; font-size: 0.82rem;">
+              <li>Awaiting complaint details...</li>
+            </ul>
+          </div>
+
+          <!-- Recommended Action -->
+          <div style="font-size: 0.82rem; background: rgba(56, 189, 248, 0.08); border-left: 3px solid #38bdf8; padding: 0.6rem 0.8rem; border-radius: 4px;">
+            <strong style="color: #38bdf8;">AI Municipal Action Plan:</strong>
+            <p id="previewAction" style="margin-top: 0.2rem; color: #e2e8f0;">
+              Fill the form and click "AI Pre-Scan" or "Submit" to compute optimal municipal response.
+            </p>
+          </div>
+        </div>
+
+        <!-- Deduplication Notice Banner (Hidden initially) -->
+        <div id="duplicateAlertBox" style="display: none; margin-top: 1rem; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: var(--radius-sm); padding: 0.9rem;">
+          <div style="display: flex; gap: 0.7rem; align-items: flex-start;">
+            <i class="fa-solid fa-clone" style="color: #f59e0b; font-size: 1.2rem; margin-top: 0.15rem;"></i>
+            <div>
+              <strong style="color: #fde68a; font-size: 0.9rem;">Duplicate Incident Detected Nearby!</strong>
+              <p id="duplicateAlertMsg" style="font-size: 0.82rem; color: #cbd5e1; margin-top: 0.2rem;"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Community Reports Strip -->
+  <div style="margin-top: 3.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem;">
+      <div>
+        <h2 style="font-family: var(--font-display); font-size: 1.6rem;">
+          <i class="fa-solid fa-users" style="color: var(--accent-indigo);"></i> Recent Citizen Reports
+        </h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">
+          Live public stream of issues reported by neighbors. Upvote issues to escalate priority.
+        </p>
+      </div>
+      <a href="{{ url_for('admin') }}" class="btn btn-secondary" style="font-size: 0.85rem; padding: 0.5rem 1rem;">
+        <i class="fa-solid fa-table-list"></i> View All in Command Center
+      </a>
+    </div>
+
+    <div id="recentComplaintsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1.5rem;">
+      <!-- Populated via citizen.js -->
+    </div>
+  </div>
+</div>
+
+<!-- Submission Confirmation Modal -->
+<div class="modal-overlay" id="successModal">
+  <div class="modal-content">
+    <div style="text-align: center; margin-bottom: 1.5rem;">
+      <div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(16, 185, 129, 0.2); color: #10b981; font-size: 1.8rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem;">
+        <i class="fa-solid fa-check"></i>
+      </div>
+      <h3 style="font-family: var(--font-display); font-size: 1.5rem; color: var(--text-main);">
+        Complaint Successfully Registered!
+      </h3>
+      <p style="color: var(--text-muted); font-size: 0.92rem; margin-top: 0.35rem;">
+        Our Gemini AI engine has analyzed and dispatched this ticket.
+      </p>
+    </div>
+
+    <!-- Tracking Card Inside Modal -->
+    <div style="background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 1.25rem; margin-bottom: 1.5rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.75rem; margin-bottom: 0.75rem;">
+        <span style="font-size: 0.85rem; color: var(--text-muted);">Unique Tracking ID:</span>
+        <strong id="modalTrackingId" style="font-size: 1.15rem; color: #38bdf8; letter-spacing: 0.05em; font-family: monospace;">CIVIC-XXXX</strong>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; font-size: 0.85rem; margin-bottom: 0.75rem;">
+        <div>
+          <span style="color: var(--text-dim);">AI Category:</span>
+          <div id="modalCategory" style="font-weight: 600; color: var(--text-main);">--</div>
+        </div>
+        <div>
+          <span style="color: var(--text-dim);">Assigned Priority:</span>
+          <div id="modalPriority">--</div>
+        </div>
+      </div>
+      <div style="font-size: 0.85rem;">
+        <span style="color: var(--text-dim);">Dispatched Municipal Agency:</span>
+        <div id="modalDepartment" style="font-weight: 600; color: var(--accent-emerald); margin-top: 0.2rem;">--</div>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 1rem;">
+      <button type="button" class="btn btn-secondary" onclick="closeSuccessModal()" style="flex: 1;">
+        <i class="fa-solid fa-plus"></i> File Another Report
+      </button>
+      <a id="modalTrackBtn" href="#" class="btn btn-primary" style="flex: 1; text-decoration: none;">
+        <i class="fa-solid fa-arrow-up-right-from-square"></i> Track Ticket Live
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/citizen.js') }}"></script>
+{% endblock %}

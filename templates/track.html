@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+
+{% block title %}Track Civic Issue — CivicSense AI{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 960px; padding-top: 2.5rem;">
+  <!-- Header & Search -->
+  <div style="text-align: center; margin-bottom: 2.5rem;">
+    <div class="hero-pill" style="margin-bottom: 0.75rem;">
+      <i class="fa-solid fa-satellite-dish"></i> Transparent Municipal Governance
+    </div>
+    <h1 style="font-family: var(--font-display); font-size: 2.4rem; font-weight: 800; margin-bottom: 0.75rem;">
+      Track Complaint <span class="gradient-text">Resolution Status</span>
+    </h1>
+    <p style="color: var(--text-muted); max-width: 600px; margin: 0 auto 1.5rem;">
+      Enter your unique CivicSense tracking ID to view real-time status updates, field crew dispatch logs, and AI verification details.
+    </p>
+
+    <!-- Tracking Lookup Input -->
+    <div style="max-width: 520px; margin: 0 auto; display: flex; gap: 0.6rem;">
+      <input type="text" id="trackInput" class="form-control" placeholder="e.g. CIVIC-2026-A109F" value="{{ tracking_id }}" style="font-family: monospace; font-size: 1.05rem; letter-spacing: 0.05em; background: rgba(15, 23, 42, 0.85);">
+      <button onclick="performTrackingSearch()" class="btn btn-primary" style="white-space: nowrap;">
+        <i class="fa-solid fa-magnifying-glass"></i> Track Issue
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div id="trackLoading" style="display: none; text-align: center; padding: 3rem 0;">
+    <div style="font-size: 2.5rem; color: var(--accent-cyan); animation: spin 1s infinite linear;">
+      <i class="fa-solid fa-circle-notch"></i>
+    </div>
+    <p style="margin-top: 1rem; color: var(--text-muted);">Querying municipal registry & audit logs...</p>
+  </div>
+
+  <!-- Error / Not Found State -->
+  <div id="trackError" style="display: none; text-align: center; padding: 2.5rem; background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.3); border-radius: var(--radius-md); margin-bottom: 2rem;">
+    <i class="fa-solid fa-triangle-exclamation" style="font-size: 2.5rem; color: #f43f5e; margin-bottom: 1rem;"></i>
+    <h3 style="font-size: 1.25rem; color: #fda4af;">Complaint Not Found</h3>
+    <p id="trackErrorMsg" style="color: var(--text-muted); margin-top: 0.35rem; font-size: 0.9rem;">
+      Please verify the tracking number and try again. Example format: CIVIC-2026-A109F.
+    </p>
+  </div>
+
+  <!-- Tracking Details Card (Shown when complaint is loaded) -->
+  <div id="trackResultCard" style="display: none;">
+    <!-- Step-by-Step Progress Timeline -->
+    <div class="glass-panel" style="padding: 2rem; margin-bottom: 2rem;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.75rem;">
+        <div>
+          <span style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted);">Complaint Reference:</span>
+          <h2 id="resultTrackingId" style="font-family: monospace; font-size: 1.7rem; color: #38bdf8; font-weight: 700;">CIVIC-XXXX</h2>
+          <div style="font-size: 0.85rem; color: var(--text-dim); margin-top: 0.2rem;">
+            Filed on: <span id="resultCreatedAt">--</span> &nbsp;|&nbsp; Reporter: <span id="resultCitizenName">--</span>
+          </div>
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <span id="resultPriorityBadge" class="badge">--</span>
+          <span id="resultStatusBadge" class="badge">--</span>
+        </div>
+      </div>
+
+      <!-- Roadmap Stepper Bar -->
+      <div class="stepper-wrapper" style="display: flex; justify-content: space-between; position: relative; margin: 2rem 0 1rem;">
+        <div class="stepper-line" style="position: absolute; top: 18px; left: 5%; right: 5%; height: 3px; background: rgba(255, 255, 255, 0.1); z-index: 1;">
+          <div id="stepperProgress" style="height: 100%; width: 25%; background: linear-gradient(90deg, #06b6d4, #10b981); transition: width 0.5s ease;"></div>
+        </div>
+
+        <div class="step-node" id="stepReported" style="position: relative; z-index: 2; text-align: center; flex: 1;">
+          <div class="step-circle" style="width: 38px; height: 38px; border-radius: 50%; background: #0f172a; border: 2px solid #06b6d4; color: #06b6d4; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 0.9rem;">
+            <i class="fa-solid fa-bullhorn"></i>
+          </div>
+          <div style="font-size: 0.8rem; font-weight: 600; margin-top: 0.5rem;">Reported</div>
+          <div style="font-size: 0.7rem; color: var(--text-dim);">AI Ingested</div>
+        </div>
+
+        <div class="step-node" id="stepReview" style="position: relative; z-index: 2; text-align: center; flex: 1;">
+          <div class="step-circle" style="width: 38px; height: 38px; border-radius: 50%; background: #0f172a; border: 2px solid rgba(255, 255, 255, 0.2); color: var(--text-dim); display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 0.9rem;">
+            <i class="fa-solid fa-list-check"></i>
+          </div>
+          <div style="font-size: 0.8rem; font-weight: 600; margin-top: 0.5rem;">Under Review</div>
+          <div style="font-size: 0.7rem; color: var(--text-dim);">Triage</div>
+        </div>
+
+        <div class="step-node" id="stepAssigned" style="position: relative; z-index: 2; text-align: center; flex: 1;">
+          <div class="step-circle" style="width: 38px; height: 38px; border-radius: 50%; background: #0f172a; border: 2px solid rgba(255, 255, 255, 0.2); color: var(--text-dim); display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 0.9rem;">
+            <i class="fa-solid fa-user-gear"></i>
+          </div>
+          <div style="font-size: 0.8rem; font-weight: 600; margin-top: 0.5rem;">Assigned</div>
+          <div style="font-size: 0.7rem; color: var(--text-dim);">Routed to Wing</div>
+        </div>
+
+        <div class="step-node" id="stepProgress" style="position: relative; z-index: 2; text-align: center; flex: 1;">
+          <div class="step-circle" style="width: 38px; height: 38px; border-radius: 50%; background: #0f172a; border: 2px solid rgba(255, 255, 255, 0.2); color: var(--text-dim); display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 0.9rem;">
+            <i class="fa-solid fa-person-digging"></i>
+          </div>
+          <div style="font-size: 0.8rem; font-weight: 600; margin-top: 0.5rem;">In Progress</div>
+          <div style="font-size: 0.7rem; color: var(--text-dim);">Crew on Site</div>
+        </div>
+
+        <div class="step-node" id="stepResolved" style="position: relative; z-index: 2; text-align: center; flex: 1;">
+          <div class="step-circle" style="width: 38px; height: 38px; border-radius: 50%; background: #0f172a; border: 2px solid rgba(255, 255, 255, 0.2); color: var(--text-dim); display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 0.9rem;">
+            <i class="fa-solid fa-circle-check"></i>
+          </div>
+          <div style="font-size: 0.8rem; font-weight: 600; margin-top: 0.5rem;">Resolved</div>
+          <div style="font-size: 0.7rem; color: var(--text-dim);">Closed & Inspected</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2 Column Details -->
+    <div style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 1.75rem; margin-bottom: 2rem;">
+      <!-- Incident Overview -->
+      <div class="glass-panel" style="padding: 1.75rem;">
+        <h3 style="font-size: 1.15rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="fa-solid fa-circle-info" style="color: var(--accent-cyan);"></i> Incident Overview
+        </h3>
+
+        <!-- Image if available -->
+        <div id="resultImageContainer" style="margin-bottom: 1rem; display: none;">
+          <img id="resultImage" src="" alt="Evidence Photo" style="width: 100%; max-height: 260px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+        </div>
+
+        <h4 id="resultTitle" style="font-size: 1.2rem; color: var(--text-main); margin-bottom: 0.5rem;">--</h4>
+        <p id="resultDescription" style="color: #cbd5e1; font-size: 0.92rem; line-height: 1.6; margin-bottom: 1.25rem;">--</p>
+
+        <!-- Voice transcript if available -->
+        <div id="resultVoiceBox" style="display: none; background: rgba(30, 41, 59, 0.6); border: 1px solid var(--border-subtle); padding: 0.8rem 1rem; border-radius: var(--radius-sm); margin-bottom: 1.25rem;">
+          <div style="font-size: 0.78rem; font-weight: 600; color: #a855f7; display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.2rem;">
+            <i class="fa-solid fa-microphone-lines"></i> Transcribed Voice Note:
+          </div>
+          <p id="resultVoiceText" style="font-size: 0.85rem; color: #e2e8f0; font-style: italic;">--</p>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; border-top: 1px solid var(--border-subtle); padding-top: 1rem; font-size: 0.85rem;">
+          <div>
+            <span style="color: var(--text-dim);">Category:</span>
+            <div id="resultCategory" style="font-weight: 600; color: var(--text-main); margin-top: 0.2rem;">--</div>
+          </div>
+          <div>
+            <span style="color: var(--text-dim);">Nodal Department:</span>
+            <div id="resultDepartment" style="font-weight: 600; color: var(--accent-cyan); margin-top: 0.2rem;">--</div>
+          </div>
+          <div style="grid-column: span 2;">
+            <span style="color: var(--text-dim);">Reported Location:</span>
+            <div id="resultAddress" style="font-weight: 500; color: var(--text-main); margin-top: 0.2rem;">--</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Verification & Safety Assessment -->
+      <div class="glass-panel" style="padding: 1.75rem;">
+        <h3 style="font-size: 1.15rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="fa-solid fa-microchip" style="color: #a855f7;"></i> Generative AI Assessment
+        </h3>
+
+        <!-- Severity Score -->
+        <div style="background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 1rem; margin-bottom: 1.2rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+            <span style="font-size: 0.82rem; color: var(--text-muted);">Public Safety Hazard Score</span>
+            <strong id="resultSeverityScore" style="color: #38bdf8; font-size: 1.1rem;">-- / 100</strong>
+          </div>
+          <div class="severity-bar-container">
+            <div id="resultSeverityBar" class="severity-fill" style="width: 50%; background: #38bdf8;"></div>
+          </div>
+        </div>
+
+        <!-- Risks & Objects -->
+        <div style="margin-bottom: 1.2rem;">
+          <strong style="font-size: 0.85rem; color: var(--text-muted);">Assessed Risk Factors:</strong>
+          <ul id="resultRiskList" style="margin-left: 1.2rem; margin-top: 0.4rem; color: #cbd5e1; font-size: 0.84rem; line-height: 1.5;">
+            <!-- Populated via JS -->
+          </ul>
+        </div>
+
+        <!-- Recommended Municipal Action -->
+        <div style="background: rgba(16, 185, 129, 0.08); border-left: 3px solid #10b981; padding: 0.75rem 1rem; border-radius: 4px; margin-bottom: 1.2rem;">
+          <strong style="font-size: 0.82rem; color: #10b981;">Assigned Action Directive:</strong>
+          <p id="resultAction" style="font-size: 0.84rem; color: #e2e8f0; margin-top: 0.25rem;">--</p>
+        </div>
+
+        <div style="font-size: 0.82rem; color: var(--text-dim);">
+          <i class="fa-solid fa-shield-halved" style="color: #38bdf8;"></i> AI Confidence: <span id="resultConfidence">95%</span> &nbsp;|&nbsp;
+          <span>Community Upvotes: <strong id="resultUpvotes" style="color: var(--text-main);">1</strong></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Official Municipal Audit & Action Logs -->
+    <div class="glass-panel" style="padding: 2rem;">
+      <h3 style="font-size: 1.25rem; font-family: var(--font-display); margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem;">
+        <i class="fa-solid fa-timeline" style="color: #f59e0b;"></i> Official Municipal Audit Trail & Field Notes
+      </h3>
+
+      <div id="auditTimeline" style="position: relative; padding-left: 1.5rem; border-left: 2px solid rgba(255, 255, 255, 0.1);">
+        <!-- Populated via JS -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-execute if tracking ID is already present in query params or input
+document.addEventListener("DOMContentLoaded", () => {
+  const input = document.getElementById("trackInput");
+  if (input.value.trim() !== "") {
+    performTrackingSearch();
+  }
+});
+
+async function performTrackingSearch() {
+  const trackingId = document.getElementById("trackInput").value.trim();
+  if (!trackingId) return;
+
+  const loading = document.getElementById("trackLoading");
+  const errorBox = document.getElementById("trackError");
+  const resultCard = document.getElementById("trackResultCard");
+
+  loading.style.display = "block";
+  errorBox.style.display = "none";
+  resultCard.style.display = "none";
+
+  try {
+    const res = await fetch(`/api/complaint/${encodeURIComponent(trackingId)}`);
+    const data = await res.json();
+    loading.style.display = "none";
+
+    if (!data.success) {
+      errorBox.style.display = "block";
+      document.getElementById("trackErrorMsg").textContent = data.error || "Complaint ID not recognized.";
+      return;
+    }
+
+    renderComplaintTracking(data.complaint, data.history);
+    resultCard.style.display = "block";
+  } catch (err) {
+    loading.style.display = "none";
+    errorBox.style.display = "block";
+    document.getElementById("trackErrorMsg").textContent = "Network error connecting to municipal registry.";
+  }
+}
+
+function renderComplaintTracking(c, history) {
+  document.getElementById("resultTrackingId").textContent = c.tracking_id;
+  document.getElementById("resultCreatedAt").textContent = c.created_at;
+  document.getElementById("resultCitizenName").textContent = c.citizen_name || "Anonymous Citizen";
+  document.getElementById("resultTitle").textContent = c.title;
+  document.getElementById("resultDescription").textContent = c.description;
+  document.getElementById("resultCategory").textContent = c.category;
+  document.getElementById("resultDepartment").textContent = c.department;
+  document.getElementById("resultAddress").textContent = c.address;
+  document.getElementById("resultUpvotes").textContent = c.upvotes_count || 1;
+
+  // Image
+  const imgCont = document.getElementById("resultImageContainer");
+  if (c.image_path) {
+    imgCont.style.display = "block";
+    document.getElementById("resultImage").src = `/uploads/${c.image_path}`;
+  } else {
+    imgCont.style.display = "none";
+  }
+
+  // Voice Note
+  const voiceBox = document.getElementById("resultVoiceBox");
+  if (c.voice_transcript) {
+    voiceBox.style.display = "block";
+    document.getElementById("resultVoiceText").textContent = `"${c.voice_transcript}"`;
+  } else {
+    voiceBox.style.display = "none";
+  }
+
+  // Badges
+  const pBadge = document.getElementById("resultPriorityBadge");
+  pBadge.className = `badge badge-${c.priority.toLowerCase()}`;
+  pBadge.textContent = `${c.priority} Priority`;
+
+  const sBadge = document.getElementById("resultStatusBadge");
+  sBadge.className = `badge ${c.status === 'Resolved' ? 'badge-resolved' : 'badge-category'}`;
+  sBadge.textContent = c.status;
+
+  // Stepper Progression
+  updateStepper(c.status);
+
+  // AI Reasoning
+  const ai = c.ai_reasoning || {};
+  document.getElementById("resultSeverityScore").textContent = `${c.severity_score} / 100`;
+  const sevBar = document.getElementById("resultSeverityBar");
+  sevBar.style.width = `${c.severity_score}%`;
+  sevBar.style.background = c.severity_score >= 80 ? '#f43f5e' : (c.severity_score >= 60 ? '#f59e0b' : '#38bdf8');
+
+  // Risks list
+  const riskList = document.getElementById("resultRiskList");
+  riskList.innerHTML = "";
+  const risks = ai.risk_factors || ["No critical public risk flags identified."];
+  risks.forEach(r => {
+    const li = document.createElement("li");
+    li.textContent = r;
+    riskList.appendChild(li);
+  });
+
+  document.getElementById("resultAction").textContent = ai.recommended_action || "Standard municipal maintenance inspection scheduled.";
+  document.getElementById("resultConfidence").textContent = `${Math.round((c.ai_confidence || 0.95) * 100)}%`;
+
+  // Audit Logs
+  const auditContainer = document.getElementById("auditTimeline");
+  auditContainer.innerHTML = "";
+  if (history && history.length > 0) {
+    history.forEach(h => {
+      const item = document.createElement("div");
+      item.style.position = "relative";
+      item.style.marginBottom = "1.5rem";
+
+      item.innerHTML = `
+        <div style="position: absolute; left: -1.95rem; top: 0.15rem; width: 14px; height: 14px; border-radius: 50%; background: #06b6d4; border: 2px solid #090d16;"></div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.25rem;">
+          <strong style="color: var(--text-main); font-size: 0.9rem;">Status updated to: <span style="color: #38bdf8;">${h.new_status}</span></strong>
+          <span style="font-size: 0.75rem; color: var(--text-dim);">${h.timestamp}</span>
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem;">
+          Authorized by: <span style="color: #cbd5e1;">${h.changed_by}</span>
+        </div>
+        ${h.notes ? `<p style="font-size: 0.84rem; color: #e2e8f0; background: rgba(255,255,255,0.03); border-radius: 4px; padding: 0.5rem 0.75rem; margin-top: 0.35rem;">${h.notes}</p>` : ''}
+        ${h.proof_image ? `
+          <div style="margin-top: 0.5rem;">
+            <span style="font-size: 0.75rem; color: #10b981; font-weight: 600;"><i class="fa-solid fa-camera"></i> Field Resolution Proof:</span>
+            <img src="/uploads/${h.proof_image}" style="display: block; max-height: 140px; border-radius: 6px; margin-top: 0.25rem; border: 1px solid var(--border-subtle);">
+          </div>
+        ` : ''}
+      `;
+      auditContainer.appendChild(item);
+    });
+  } else {
+    auditContainer.innerHTML = `<p style="color: var(--text-dim); font-size: 0.85rem;">No updates logged yet.</p>`;
+  }
+}
+
+function updateStepper(status) {
+  const steps = ["Reported", "Under Review", "Assigned", "In Progress", "Resolved"];
+  const ids = ["stepReported", "stepReview", "stepAssigned", "stepProgress", "stepResolved"];
+  let currIdx = steps.indexOf(status);
+  if (currIdx === -1) currIdx = 0;
+
+  const pct = (currIdx / (steps.length - 1)) * 90 + 5;
+  document.getElementById("stepperProgress").style.width = `${pct}%`;
+
+  ids.forEach((id, idx) => {
+    const el = document.getElementById(id);
+    const circle = el.querySelector(".step-circle");
+    if (idx <= currIdx) {
+      circle.style.borderColor = "#10b981";
+      circle.style.color = "#10b981";
+      circle.style.background = "rgba(16, 185, 129, 0.15)";
+    } else {
+      circle.style.borderColor = "rgba(255, 255, 255, 0.2)";
+      circle.style.color = "var(--text-dim)";
+      circle.style.background = "#0f172a";
+    }
+  });
+}
+</script>
+{% endblock %}
