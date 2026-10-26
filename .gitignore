@@ -27,3 +27,9 @@ static/uploads/temp_preview_*
 Thumbs.db
 .vscode/
 .idea/
+
+.venv/
+__pycache__/
+*.pyc
+.env
+civicsense.db
